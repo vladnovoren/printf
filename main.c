@@ -4,6 +4,6 @@ extern void func(char *s);
 
 
 int main () {
-  func("12341234\n");
+  func("123");
   return 0;
 }
