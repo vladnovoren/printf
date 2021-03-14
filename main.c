@@ -1,9 +1,10 @@
 #include <stdio.h>
 
-extern void func(char *s);
+extern void func();
 
 
 int main () {
-  func("123");
+  func();
+  // printf("%x\n", 123);
   return 0;
 }
