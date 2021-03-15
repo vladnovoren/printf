@@ -51,9 +51,8 @@ cnt_n_ranks_bin_deg: ; в edx помещаем кол-во разрядов в �
         push edx ; сохраняем кол-во разрядов в числе
  
         add edi, edx
-        dec edi
         cmp edi, printf_buffer_size
-        jae buf_overflow_handler ; если число вылезает за конец буфера, не печатаем его и переходим к концу printf
+        ja buf_overflow_handler ; если число вылезает за конец буфера, не печатаем его и переходим к концу printf
 write_bin_loop: ; запись в буфер
         dec edi
         dec edx
@@ -89,11 +88,26 @@ cnt_n_ranks_dec: ; в ecx кладем кол-во разрядов
         cmp eax, dword 0
         jne cnt_n_ranks_dec
 
-        pop eax
         add edi, ecx
         cmp edi, printf_buffer_size
-        jae 
-        
+        ja buf_overflow_handler
+
+        pop eax ; возвращаем число в eax
+write_dec_loop:
+        xor edx, edx
+        div ebx
+        dec edi
+        add edx, '0'
+        mov [edi], dl
+        cmp eax, dword 0
+        ja write_dec_loop
+
+        add edi, ecx
+        ret
+
+
+
+
 
 
 ;-------------------------------------------------------------------------------
@@ -112,7 +126,12 @@ jmp_table:
                  dd hexodecimal_handler
 
 
-
+err_non_frmt_char_handler:
+character_handler:
+decimal_handler:
+octal_handler:
+string_handler:
+hexodecimal_handler:
 
 ;-------------------------------------------------------------------------------
 ; принтэфчик
@@ -165,11 +184,11 @@ procent_handler:
         jb err_non_frmt_char_handler
 
         cmp [esi], byte 0
-        je ret
+        ; je ret
 
 
         xor eax, eax
-        mov eax, byte [esi]
+        mov al, [esi]
         sub eax, 'a'
         xor ebx, ebx
         mov ebx, dword [jmp_table + 4 * eax]
@@ -180,9 +199,9 @@ procent_handler:
 ; обработчик неформатных символов
 ;-------------------------------------------------------------------------------
 non_frnt_char_handler:
-        push [esi]
+        push dword [esi]
         inc esi
-        pop [edi]
+        pop dword [edi]
         inc edi
         jmp printf_loop
 
@@ -202,17 +221,21 @@ buf_overflow_handler:
 
 
 
-global  func
+global  _start
 
-func:
-        mov eax, 1234 ; число, которое хотим вывести
+_start:
+        mov eax, -7 ; число, которое хотим вывести
+        xor eax, -1
+        inc eax
         mov edi, printf_buffer ; указываем буфер, в который записывать число
-        mov ecx, 3 ; 
-        call print_bin_deg_notatioin
+        mov ecx, 1 ;
+        call write_non_neg_dec_notation_to_buf
+        ; call write_bin_deg_notation_to_buf
 
-        mov ecx, printf_buffer        
+        mov ecx, printf_buffer
         mov edx, dword [printf_buffer_size]
         call print_str
+
         mov eax, 1
         mov ebx, 0
         int 0x80
