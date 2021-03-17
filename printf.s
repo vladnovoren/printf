@@ -1,17 +1,46 @@
 section .text
 
 
+; навигция по стеку
 ;--------------------------------------------------------------------------------
-; возвращает в edx длину строки
+; помещает в eax следующий аргумент, если это число
+;--------------------------------------------------------------------------------
+get_next_num_arg:
+        mov eax, dword [ebp]
+        add ebp, 4
+        ret
+
+
+; строки
+;--------------------------------------------------------------------------------
+; возвращает в ecx длину строки без учета терминирующего нуля
 ; esi - смещение строки
 ;--------------------------------------------------------------------------------
 str_len:
-        xor edx, edx
-        dec edx
+        xor ecx, ecx
+        dec ecx
 str_len_loop:
-        inc edx
-        cmp [esi + edx], byte 0
+        inc ecx
+        cmp [esi + ecx], byte 0
         jne str_len_loop
+        ret
+
+
+;--------------------------------------------------------------------------------
+; запись строки в буфер
+; esi - адрес строки
+; edi - место в буфере, с которого начать запись
+; destrlist:
+; esi, edi, ecx
+;--------------------------------------------------------------------------------
+string_handler:
+        call str_len
+        add edi, ecx
+        dec edi
+        call check_buf_overflow
+        inc edi
+        sub edi, ecx
+        rep movsb
         ret
 
 
@@ -19,6 +48,8 @@ str_len_loop:
 ; печатает строку
 ; ecx - адрес строки
 ; edx - длина строки
+; destrlist:
+; eax, ebx
 ;--------------------------------------------------------------------------------
 print_str:
         mov eax, 4
@@ -27,6 +58,8 @@ print_str:
         ret
 
 
+
+; вывод чисел
 ;--------------------------------------------------------------------------------
 ; функции записи в буфер числа в системах счисления, являющихся степенью двойки
 ; eax - число, которое нужно вывести
@@ -75,6 +108,8 @@ not_a_letter:
 ; запись неотрицательного числа в десятичной системе счисления в буфер
 ; eax - число, которое нужно вывести
 ; edi - позиция, с которой выводить число
+; destrlist:
+; eax, ebx, ecx, edx, edi
 ;-------------------------------------------------------------------------------
 write_non_neg_dec_notation_to_buf:
         push eax ; сохраняем в стеке число
@@ -88,7 +123,9 @@ cnt_n_ranks_dec: ; в ecx кладем кол-во разрядов
         jne cnt_n_ranks_dec
 
         add edi, ecx
+        dec edi
         call check_buf_overflow
+        inc edi
 
         pop eax ; возвращаем число в eax
 write_dec_loop:
@@ -108,6 +145,8 @@ write_dec_loop:
 ; вывод произвольного числа в десятичной системе счисления в буфер
 ; eax - число, которое нужно вывести
 ; edi - позиция в буфере, с которой нужно начать вывод
+; destrlist:
+; eax, ebx, ecx, edx, edi
 ;--------------------------------------------------------------------------------
 write_dec_notation_to_buf:
         cmp eax, 0
@@ -135,129 +174,4 @@ jmp_table:
         times 3  dd err_non_frmt_char_handler
                  dd string_handler
         times 4  dd err_non_frmt_char_handler
-                 dd hexodecimal_handler
-
-
-err_non_frmt_char_handler:
-character_handler:
-decimal_handler:
-octal_handler:
-string_handler:
-hexodecimal_handler:
-
-;-------------------------------------------------------------------------------
-; принтэфчик
-; в стеке аргументы
-; сначала форматная строка, потом аргументы
-; текущая позиция в строке будет лежать в esi
-; в eax возвращает код ошибки:
-; 0 - all clear
-; 1 - buf_overflow 
-;-------------------------------------------------------------------------------
-_printf:
-        mov ebp, esp
-        add ebp, 4
-        mov esi, [ebp]
-        add ebp, 4
-        dec esi
-printf_loop:
-        cmp [esi], byte '%'
-        je procent_handler
-
-        cmp [esi], byte 0
-        jne non_frnt_char_handler
-
-end_of_printf:
-
-        ret
-          
-
-
-;-------------------------------------------------------------------------------
-; binary
-;-------------------------------------------------------------------------------
-binary_handler:
-
-
-
-
-;-------------------------------------------------------------------------------
-; обработчики форматных символов
-;-------------------------------------------------------------------------------
-procent_handler:
-        inc esi
-        cmp [esi], byte '%'
-        je non_frnt_char_handler
-
-        cmp [esi], byte 'x'
-        ja err_non_frmt_char_handler
-
-        cmp [esi], byte 'b'
-        jb err_non_frmt_char_handler
-
-        cmp [esi], byte 0
-        ; je ret
-
-        xor eax, eax
-        mov al, [esi]
-        sub eax, 'a'
-        xor ebx, ebx
-        mov ebx, dword [jmp_table + 4 * eax]
-        jmp ebx
-
-
-;-------------------------------------------------------------------------------
-; обработчик неформатных символов
-;-------------------------------------------------------------------------------
-non_frnt_char_handler:
-        call check_buf_overflow
-
-        push dword [esi]
-        inc esi
-        pop dword [edi]
-        inc edi
-        jmp printf_loop
-
-
-;-------------------------------------------------------------------------------
-; проверка буфера на переполнения
-;-------------------------------------------------------------------------------
-check_buf_overflow:
-        cmp edi, printf_buffer_size
-        jae overflow
-        ret
-overflow:
-        mov ecx, buf_overflow_msg
-        mov edx, buf_overflow_msg_len
-        call print_str
-        xor eax, eax
-        inc eax
-        jmp end_of_printf
-
-
-
-
-global  _start
-
-_start:
-        mov eax, -1234 ; число, которое хотим вывести
-        mov edi, printf_buffer ; указываем буфер, в который записывать число
-        call write_dec_notation_to_buf
-
-        mov ecx, printf_buffer
-        mov edx, dword [printf_buffer_size]
-        call print_str
-
-        mov eax, 1
-        mov ebx, 0
-        int 0x80
-
-section .data
-
-hello_str db "hello"
-
-
-printf_buffer times 256 db 0
-printf_buffer_size dd $ - printf_buffer
-buf_overflow_msg db "error: _printf buffer overflow", 0x0a
-buf_overflow_msg_len dd $ - buf_overflow_msg
+                 dd hexadecimal_handler
