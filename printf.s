@@ -300,10 +300,10 @@ non_frmt_char_handler:
 global  _start
 
 _start:
-        push 255
-        push 33
-        push 100
-        push 3802
+        push 7
+        push 7
+        push 7
+        push 7
         push love
         push frmt_str
         call _printf
@@ -323,7 +323,7 @@ section .data
 hello_str db "hello", 0
 
 love db "LOVE", 0
-frmt_str db "%a %%d%d", 0
+frmt_str db "I %s %d %x %o %b", 0
 hello db "hello", 10, 0
 printf_buffer times 256 db 0
 printf_buffer_size dd $ - printf_buffer
